@@ -1,0 +1,36 @@
+-- Car Fly avec la touche X pour Emergency Hamburg
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+local carFlyEnabled = false
+local speed = 80
+
+-- Toggle avec touche X
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == Enum.KeyCode.X then
+        carFlyEnabled = not carFlyEnabled
+        if carFlyEnabled then
+            print("✅ Car Fly ACTIVÉ")
+        else
+            print("❌ Car Fly DÉSACTIVÉ")
+        end
+    end
+end)
+
+-- Boucle de Car Fly
+RunService.RenderStepped:Connect(function()
+    if not carFlyEnabled then return end
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    local vehicle = char:FindFirstChildWhichIsA("Model")
+    if vehicle and vehicle:FindFirstChild("VehicleSeat") and vehicle.PrimaryPart then
+        local mouse = LocalPlayer:GetMouse()
+        local dir = mouse.Hit.LookVector
+        vehicle.PrimaryPart.Velocity = dir * speed
+        vehicle.PrimaryPart.RotVelocity = Vector3.zero
+    end
+end)
