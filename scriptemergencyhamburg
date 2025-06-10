@@ -1,0 +1,279 @@
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+-- États
+local flyEnabled = false
+local espEnabled = false
+local aimbotEnabled = false
+local autoFarmPolice = false
+local autoFarmAmbulance = false
+local bringAllEnabled = false
+
+-- Variables fly
+local flySpeed = 70
+local flyBodyVelocity, flyConnection = nil, nil
+
+-- GUI
+local ScreenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+ScreenGui.Name = "EmergencyHamburgUtil"
+
+local function createToggleButton(name, position, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0,180,0,40)
+    btn.Position = position
+    btn.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.TextSize = 18
+    btn.Font = Enum.Font.SourceSansBold
+    btn.Text = name..": OFF"
+    btn.AutoButtonColor = true
+    btn.Parent = ScreenGui
+    local toggled = false
+    btn.MouseButton1Click:Connect(function()
+        toggled = not toggled
+        btn.Text = name..(toggled and ": ON" or ": OFF")
+        callback(toggled)
+    end)
+    return btn
+end
+
+-- Fly
+local function toggleFly(state)
+    flyEnabled = state
+    local char = player.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if state and hrp then
+        if flyBodyVelocity then flyBodyVelocity:Destroy() end
+        flyBodyVelocity = Instance.new("BodyVelocity", hrp)
+        flyBodyVelocity.MaxForce = Vector3.new(1e5,1e5,1e5)
+        flyBodyVelocity.Velocity = Vector3.new(0,0,0)
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if humanoid then humanoid.PlatformStand = true end
+        flyConnection = RunService.Heartbeat:Connect(function()
+            if not flyEnabled then return end
+            local v = Vector3.new()
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then v += camera.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then v -= camera.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then v += camera.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then v -= camera.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then v += Vector3.new(0,1,0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then v -= Vector3.new(0,1,0) end
+            flyBodyVelocity.Velocity = v.Magnitude > 0 and v.Unit * flySpeed or Vector3.new()
+        end)
+    else
+        if flyConnection then flyConnection:Disconnect() flyConnection = nil end
+        if flyBodyVelocity then flyBodyVelocity:Destroy() flyBodyVelocity = nil end
+        local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then humanoid.PlatformStand = false end
+    end
+end
+
+-- AutoFarm Police & Ambulance
+local function findNearestJob(locationName)
+    local parts = Workspace:FindFirstChild("JobSpawns")
+    if not parts then return nil end
+    local nearest, minD = nil, math.huge
+    for _, obj in pairs(parts:GetChildren()) do
+        if obj.Name == locationName and obj:IsA("BasePart") then
+            local d = (player.Character.PrimaryPart.Position - obj.Position).Magnitude
+            if d < minD then
+                minD, nearest = d, obj
+            end
+        end
+    end
+    return nearest
+end
+
+local function autoFarmLoop(jobName)
+    while (jobName == "Police" and autoFarmPolice) or (jobName == "Ambulance" and autoFarmAmbulance) do
+        local target = findNearestJob((jobName == "Police") and "PoliceSpawn" or "AmbulanceSpawn")
+        if target and player.Character and player.Character.PrimaryPart then
+            player.Character:SetPrimaryPartCFrame(target.CFrame + Vector3.new(0,3,0))
+        end
+        task.wait(2)
+    end
+end
+
+local function toggleAutoFarm(role, state)
+    if role == "Police" then
+        autoFarmPolice = state
+        if state then task.spawn(autoFarmLoop, "Police") end
+    else
+        autoFarmAmbulance = state
+        if state then task.spawn(autoFarmLoop, "Ambulance") end
+    end
+end
+
+-- ESP (affiche nom au-dessus des joueurs)
+local espBoxes = {}
+local function createESP(p)
+    if espBoxes[p] then return end
+    if p.Character then
+        local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local billboard = Instance.new("BillboardGui", hrp)
+            billboard.Name = "ESPNameTag"
+            billboard.Adornee = hrp
+            billboard.Size = UDim2.new(0,100,0,40)
+            billboard.StudsOffset = Vector3.new(0,3,0)
+            billboard.AlwaysOnTop = true
+
+            local label = Instance.new("TextLabel", billboard)
+            label.Size = UDim2.new(1,0,1,0)
+            label.BackgroundTransparency = 1
+            label.TextColor3 = Color3.new(1,1,1)
+            label.TextStrokeTransparency = 0
+            label.TextStrokeColor3 = Color3.new(0,0,0)
+            label.Font = Enum.Font.SourceSansBold
+            label.TextSize = 18
+            label.Text = p.Name
+
+            espBoxes[p] = billboard
+        end
+    end
+end
+
+local function removeESP(p)
+    if espBoxes[p] then
+        espBoxes[p]:Destroy()
+        espBoxes[p] = nil
+    end
+end
+
+local function toggleESP(state)
+    espEnabled = state
+    if state then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= player then createESP(p) end
+        end
+        Players.PlayerAdded:Connect(createESP)
+        Players.PlayerRemoving:Connect(removeESP)
+    else
+        for p,_ in pairs(espBoxes) do removeESP(p) end
+    end
+end
+
+-- Aimbot simple avec team check
+local function getPlayerTeam(p)
+    local tv = p:FindFirstChild("Team") or (p.Character and p.Character:FindFirstChild("Team"))
+    if tv and tv:IsA("StringValue") then
+        return tv.Value
+    elseif p.Team then
+        return tostring(p.Team)
+    end
+    return nil
+end
+
+local localTeam = getPlayerTeam(player)
+local aimbotConn
+
+local function getClosestEnemy()
+    local closest, bestDist = nil, math.huge
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player and p.Character then
+            local humanoid = p.Character:FindFirstChildOfClass("Humanoid")
+            local head = p.Character:FindFirstChild("Head")
+            if humanoid and humanoid.Health > 0 and head then
+                if getPlayerTeam(p) ~= localTeam then
+                    local pos2d, on = camera:WorldToViewportPoint(head.Position)
+                    if on then
+                        local d = (Vector2.new(pos2d.X,pos2d.Y) - Vector2.new(UserInputService:GetMouseLocation())).Magnitude
+                        if d < bestDist then
+                            bestDist, closest = d, p
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return closest
+end
+
+local function toggleAimbot(state)
+    aimbotEnabled = state
+    if state then
+        aimbotConn = RunService.RenderStepped:Connect(function()
+            local tgt = getClosestEnemy()
+            if tgt and tgt.Character then
+                local head = tgt.Character:FindFirstChild("Head")
+                if head then
+                    camera.CFrame = CFrame.new(camera.CFrame.Position, head.Position)
+                end
+            end
+        end)
+    else
+        if aimbotConn then aimbotConn:Disconnect() aimbotConn = nil end
+    end
+end
+
+-- Bring All (téléporte tous les joueurs autour de toi)
+local bringConn
+local function bringAll(state)
+    bringAllEnabled = state
+    if state then
+        bringConn = RunService.Heartbeat:Connect(function()
+            if player.Character and player.Character.PrimaryPart then
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if p ~= player and p.Character and p.Character.PrimaryPart then
+                        local offset = Vector3.new(math.random(-5,5), 0, math.random(-5,5))
+                        p.Character:SetPrimaryPartCFrame(player.Character.PrimaryPart.CFrame * CFrame.new(offset))
+                    end
+                end
+            end
+        end)
+    else
+        if bringConn then bringConn:Disconnect() bringConn = nil end
+    end
+end
+
+-- Téléportation vers un joueur via input
+local function teleportToPlayer()
+    local gui = Instance.new("ScreenGui", player.PlayerGui)
+    local frame = Instance.new("Frame", gui)
+    frame.Size = UDim2.new(0,300,0,100)
+    frame.Position = UDim2.new(0.5,-150,0.5,-50)
+    frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+
+    local txt = Instance.new("TextBox", frame)
+    txt.Size = UDim2.new(1,-20,0,40)
+    txt.Position = UDim2.new(0,10,0,10)
+    txt.PlaceholderText = "Nom du joueur"
+
+    local btn = Instance.new("TextButton", frame)
+    btn.Size = UDim2.new(1,-20,0,30)
+    btn.Position = UDim2.new(0,10,0,60)
+    btn.Text = "Téléporter"
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.BackgroundColor3 = Color3.fromRGB(30,30,30)
+
+    btn.MouseButton1Click:Connect(function()
+        local t = Players:FindFirstChild(txt.Text)
+        if t and t.Character and t.Character.PrimaryPart and player.Character and player.Character.PrimaryPart then
+            player.Character:SetPrimaryPartCFrame(t.Character.PrimaryPart.CFrame * CFrame.new(0,5,0))
+        end
+        gui:Destroy()
+    end)
+
+    UserInputService.InputBegan:Connect(function(i,gp)
+        if not gp and i.KeyCode == Enum.KeyCode.Escape then gui:Destroy() end
+    end)
+end
+
+-- Création boutons
+createToggleButton("Fly", UDim2.new(0,10,0,10), toggleFly)
+createToggleButton("ESP", UDim2.new(0,10,0,60), toggleESP)
+createToggleButton("Aimbot", UDim2.new(0,10,0,110), toggleAimbot)
+createToggleButton("AutoFarm Police", UDim2.new(0,10,0,160), function(s) toggleAutoFarm("Police", s) end)
+createToggleButton("AutoFarm Ambulance", UDim2.new(0,10,0,210), function(s) toggleAutoFarm("Ambulance", s) end)
+createToggleButton("Bring All", UDim2.new(0,10,0,260), bringAll)
+createToggleButton("TP Joueur", UDim2.new(0,10,0,310), function() teleportToPlayer() end)
+
+ajout du script
