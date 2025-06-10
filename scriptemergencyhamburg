@@ -275,5 +275,3 @@ createToggleButton("AutoFarm Police", UDim2.new(0,10,0,160), function(s) toggleA
 createToggleButton("AutoFarm Ambulance", UDim2.new(0,10,0,210), function(s) toggleAutoFarm("Ambulance", s) end)
 createToggleButton("Bring All", UDim2.new(0,10,0,260), bringAll)
 createToggleButton("TP Joueur", UDim2.new(0,10,0,310), function() teleportToPlayer() end)
-
-ajout du script
