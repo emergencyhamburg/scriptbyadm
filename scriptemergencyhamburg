@@ -1,8 +1,10 @@
+
 -- Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -15,31 +17,61 @@ local autoFarmPolice = false
 local autoFarmAmbulance = false
 local bringAllEnabled = false
 
--- Variables fly
 local flySpeed = 70
 local flyBodyVelocity, flyConnection = nil, nil
 
--- GUI
+-- GUI avancée
 local ScreenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-ScreenGui.Name = "EmergencyHamburgUtil"
+ScreenGui.Name = "EmergencyHamburgUI"
+ScreenGui.ResetOnSpawn = false
 
-local function createToggleButton(name, position, callback)
+local mainFrame = Instance.new("Frame", ScreenGui)
+mainFrame.Size = UDim2.new(0, 240, 0, 420)
+mainFrame.Position = UDim2.new(0, 20, 0.5, -210)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
+Instance.new("UIStroke", mainFrame).Color = Color3.fromRGB(0, 170, 255)
+
+local UIListLayout = Instance.new("UIListLayout", mainFrame)
+UIListLayout.Padding = UDim.new(0, 10)
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local title = Instance.new("TextLabel", mainFrame)
+title.Size = UDim2.new(1, 0, 0, 40)
+title.BackgroundTransparency = 1
+title.Text = "🚓 Emergency Hamburg UI"
+title.TextColor3 = Color3.fromRGB(0, 170, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 20
+
+-- Bouton toggle
+local function createToggle(name, order, callback)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0,180,0,40)
-    btn.Position = position
-    btn.BackgroundColor3 = Color3.fromRGB(30,30,30)
-    btn.TextColor3 = Color3.new(1,1,1)
-    btn.TextSize = 18
-    btn.Font = Enum.Font.SourceSansBold
-    btn.Text = name..": OFF"
-    btn.AutoButtonColor = true
-    btn.Parent = ScreenGui
+    btn.Size = UDim2.new(1, -20, 0, 40)
+    btn.Position = UDim2.new(0, 10, 0, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.TextSize = 16
+    btn.Font = Enum.Font.Gotham
+    btn.Text = name .. ": OFF"
+    btn.AutoButtonColor = false
+    btn.LayoutOrder = order
+    btn.Name = name:gsub(" ", "") .. "Button"
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    Instance.new("UIStroke", btn).Color = Color3.fromRGB(70, 70, 70)
+
     local toggled = false
     btn.MouseButton1Click:Connect(function()
         toggled = not toggled
-        btn.Text = name..(toggled and ": ON" or ": OFF")
+        btn.Text = name .. (toggled and ": ON" or ": OFF")
+        btn.BackgroundColor3 = toggled and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(35, 35, 35)
         callback(toggled)
     end)
+
     return btn
 end
 
@@ -75,7 +107,92 @@ local function toggleFly(state)
     end
 end
 
--- AutoFarm Police & Ambulance
+-- ESP
+local espBoxes = {}
+local function createESP(p)
+    if espBoxes[p] then return end
+    if p.Character then
+        local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local billboard = Instance.new("BillboardGui", hrp)
+            billboard.Name = "ESPNameTag"
+            billboard.Adornee = hrp
+            billboard.Size = UDim2.new(0,100,0,40)
+            billboard.StudsOffset = Vector3.new(0,3,0)
+            billboard.AlwaysOnTop = true
+            local label = Instance.new("TextLabel", billboard)
+            label.Size = UDim2.new(1,0,1,0)
+            label.BackgroundTransparency = 1
+            label.TextColor3 = Color3.new(1,1,1)
+            label.TextStrokeTransparency = 0
+            label.TextStrokeColor3 = Color3.new(0,0,0)
+            label.Font = Enum.Font.SourceSansBold
+            label.TextSize = 18
+            label.Text = p.Name
+            espBoxes[p] = billboard
+        end
+    end
+end
+
+local function removeESP(p)
+    if espBoxes[p] then
+        espBoxes[p]:Destroy()
+        espBoxes[p] = nil
+    end
+end
+
+local function toggleESP(state)
+    espEnabled = state
+    if state then
+        for _, p in pairs(Players:GetPlayers()) do if p ~= player then createESP(p) end end
+        Players.PlayerAdded:Connect(createESP)
+        Players.PlayerRemoving:Connect(removeESP)
+    else
+        for p,_ in pairs(espBoxes) do removeESP(p) end
+    end
+end
+
+-- Aimbot
+local function getPlayerTeam(p)
+    local tv = p:FindFirstChild("Team") or (p.Character and p.Character:FindFirstChild("Team"))
+    if tv and tv:IsA("StringValue") then return tv.Value elseif p.Team then return tostring(p.Team) end
+    return nil
+end
+
+local localTeam = getPlayerTeam(player)
+local aimbotConn
+local function getClosestEnemy()
+    local closest, bestDist = nil, math.huge
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player and p.Character then
+            local humanoid = p.Character:FindFirstChildOfClass("Humanoid")
+            local head = p.Character:FindFirstChild("Head")
+            if humanoid and humanoid.Health > 0 and head and getPlayerTeam(p) ~= localTeam then
+                local pos2d, on = camera:WorldToViewportPoint(head.Position)
+                if on then
+                    local d = (Vector2.new(pos2d.X,pos2d.Y) - Vector2.new(UserInputService:GetMouseLocation())).Magnitude
+                    if d < bestDist then bestDist, closest = d, p end
+                end
+            end
+        end
+    end
+    return closest
+end
+
+local function toggleAimbot(state)
+    aimbotEnabled = state
+    if state then
+        aimbotConn = RunService.RenderStepped:Connect(function()
+            local tgt = getClosestEnemy()
+            if tgt and tgt.Character then
+                local head = tgt.Character:FindFirstChild("Head")
+                if head then camera.CFrame = CFrame.new(camera.CFrame.Position, head.Position) end
+            end
+        end)
+    elseif aimbotConn then aimbotConn:Disconnect() aimbotConn = nil end
+end
+
+-- AutoFarm
 local function findNearestJob(locationName)
     local parts = Workspace:FindFirstChild("JobSpawns")
     if not parts then return nil end
@@ -83,9 +200,7 @@ local function findNearestJob(locationName)
     for _, obj in pairs(parts:GetChildren()) do
         if obj.Name == locationName and obj:IsA("BasePart") then
             local d = (player.Character.PrimaryPart.Position - obj.Position).Magnitude
-            if d < minD then
-                minD, nearest = d, obj
-            end
+            if d < minD then minD, nearest = d, obj end
         end
     end
     return nearest
@@ -111,109 +226,7 @@ local function toggleAutoFarm(role, state)
     end
 end
 
--- ESP (affiche nom au-dessus des joueurs)
-local espBoxes = {}
-local function createESP(p)
-    if espBoxes[p] then return end
-    if p.Character then
-        local hrp = p.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            local billboard = Instance.new("BillboardGui", hrp)
-            billboard.Name = "ESPNameTag"
-            billboard.Adornee = hrp
-            billboard.Size = UDim2.new(0,100,0,40)
-            billboard.StudsOffset = Vector3.new(0,3,0)
-            billboard.AlwaysOnTop = true
-
-            local label = Instance.new("TextLabel", billboard)
-            label.Size = UDim2.new(1,0,1,0)
-            label.BackgroundTransparency = 1
-            label.TextColor3 = Color3.new(1,1,1)
-            label.TextStrokeTransparency = 0
-            label.TextStrokeColor3 = Color3.new(0,0,0)
-            label.Font = Enum.Font.SourceSansBold
-            label.TextSize = 18
-            label.Text = p.Name
-
-            espBoxes[p] = billboard
-        end
-    end
-end
-
-local function removeESP(p)
-    if espBoxes[p] then
-        espBoxes[p]:Destroy()
-        espBoxes[p] = nil
-    end
-end
-
-local function toggleESP(state)
-    espEnabled = state
-    if state then
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= player then createESP(p) end
-        end
-        Players.PlayerAdded:Connect(createESP)
-        Players.PlayerRemoving:Connect(removeESP)
-    else
-        for p,_ in pairs(espBoxes) do removeESP(p) end
-    end
-end
-
--- Aimbot simple avec team check
-local function getPlayerTeam(p)
-    local tv = p:FindFirstChild("Team") or (p.Character and p.Character:FindFirstChild("Team"))
-    if tv and tv:IsA("StringValue") then
-        return tv.Value
-    elseif p.Team then
-        return tostring(p.Team)
-    end
-    return nil
-end
-
-local localTeam = getPlayerTeam(player)
-local aimbotConn
-
-local function getClosestEnemy()
-    local closest, bestDist = nil, math.huge
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= player and p.Character then
-            local humanoid = p.Character:FindFirstChildOfClass("Humanoid")
-            local head = p.Character:FindFirstChild("Head")
-            if humanoid and humanoid.Health > 0 and head then
-                if getPlayerTeam(p) ~= localTeam then
-                    local pos2d, on = camera:WorldToViewportPoint(head.Position)
-                    if on then
-                        local d = (Vector2.new(pos2d.X,pos2d.Y) - Vector2.new(UserInputService:GetMouseLocation())).Magnitude
-                        if d < bestDist then
-                            bestDist, closest = d, p
-                        end
-                    end
-                end
-            end
-        end
-    end
-    return closest
-end
-
-local function toggleAimbot(state)
-    aimbotEnabled = state
-    if state then
-        aimbotConn = RunService.RenderStepped:Connect(function()
-            local tgt = getClosestEnemy()
-            if tgt and tgt.Character then
-                local head = tgt.Character:FindFirstChild("Head")
-                if head then
-                    camera.CFrame = CFrame.new(camera.CFrame.Position, head.Position)
-                end
-            end
-        end)
-    else
-        if aimbotConn then aimbotConn:Disconnect() aimbotConn = nil end
-    end
-end
-
--- Bring All (téléporte tous les joueurs autour de toi)
+-- Bring All
 local bringConn
 local function bringAll(state)
     bringAllEnabled = state
@@ -228,24 +241,20 @@ local function bringAll(state)
                 end
             end
         end)
-    else
-        if bringConn then bringConn:Disconnect() bringConn = nil end
-    end
+    elseif bringConn then bringConn:Disconnect() bringConn = nil end
 end
 
--- Téléportation vers un joueur via input
+-- TP Player
 local function teleportToPlayer()
     local gui = Instance.new("ScreenGui", player.PlayerGui)
     local frame = Instance.new("Frame", gui)
     frame.Size = UDim2.new(0,300,0,100)
     frame.Position = UDim2.new(0.5,-150,0.5,-50)
     frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
-
     local txt = Instance.new("TextBox", frame)
     txt.Size = UDim2.new(1,-20,0,40)
     txt.Position = UDim2.new(0,10,0,10)
     txt.PlaceholderText = "Nom du joueur"
-
     local btn = Instance.new("TextButton", frame)
     btn.Size = UDim2.new(1,-20,0,30)
     btn.Position = UDim2.new(0,10,0,60)
@@ -253,7 +262,6 @@ local function teleportToPlayer()
     btn.Font = Enum.Font.SourceSansBold
     btn.TextColor3 = Color3.new(1,1,1)
     btn.BackgroundColor3 = Color3.fromRGB(30,30,30)
-
     btn.MouseButton1Click:Connect(function()
         local t = Players:FindFirstChild(txt.Text)
         if t and t.Character and t.Character.PrimaryPart and player.Character and player.Character.PrimaryPart then
@@ -261,17 +269,16 @@ local function teleportToPlayer()
         end
         gui:Destroy()
     end)
-
     UserInputService.InputBegan:Connect(function(i,gp)
         if not gp and i.KeyCode == Enum.KeyCode.Escape then gui:Destroy() end
     end)
 end
 
--- Création boutons
-createToggleButton("Fly", UDim2.new(0,10,0,10), toggleFly)
-createToggleButton("ESP", UDim2.new(0,10,0,60), toggleESP)
-createToggleButton("Aimbot", UDim2.new(0,10,0,110), toggleAimbot)
-createToggleButton("AutoFarm Police", UDim2.new(0,10,0,160), function(s) toggleAutoFarm("Police", s) end)
-createToggleButton("AutoFarm Ambulance", UDim2.new(0,10,0,210), function(s) toggleAutoFarm("Ambulance", s) end)
-createToggleButton("Bring All", UDim2.new(0,10,0,260), bringAll)
-createToggleButton("TP Joueur", UDim2.new(0,10,0,310), function() teleportToPlayer() end)
+-- Créer tous les boutons avec logique
+createToggle("Fly", 1, toggleFly).Parent = mainFrame
+createToggle("ESP", 2, toggleESP).Parent = mainFrame
+createToggle("Aimbot", 3, toggleAimbot).Parent = mainFrame
+createToggle("AutoFarm Police", 4, function(s) toggleAutoFarm("Police", s) end).Parent = mainFrame
+createToggle("AutoFarm Ambulance", 5, function(s) toggleAutoFarm("Ambulance", s) end).Parent = mainFrame
+createToggle("Bring All", 6, bringAll).Parent = mainFrame
+createToggle("TP Joueur", 7, function() teleportToPlayer() end).Parent = mainFrame
