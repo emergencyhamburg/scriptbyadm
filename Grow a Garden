@@ -1,132 +1,128 @@
---// Services
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+-- Interface avancée Rayfield
+local Rayfield = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Rayfield/main/source"))()
 
-local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+local Window = Rayfield:CreateWindow({
+    Name = "Grow A Garden | Hub by ChatGPT",
+    LoadingTitle = "Chargement du script...",
+    LoadingSubtitle = "Grow A Garden Auto System",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "GrowAGardenHub",
+        FileName = "GAG_Config"
+    },
+    Discord = {
+        Enabled = false,
+    },
+    KeySystem = false,
+})
 
---// Variables de contrôle
-local AutoUnlock = false
-local AutoCollect = false
+local player = game.Players.LocalPlayer
+local autoCollect = false
+local autoWater = false
+local autoHarvest = false
 
---// GUI Création simple et avancée
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "GrowAGardenUnlocker"
-ScreenGui.Parent = playerGui
-ScreenGui.ResetOnSpawn = false
-
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 350, 0, 400)
-mainFrame.Position = UDim2.new(0.5, -175, 0.5, -200)
-mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-mainFrame.BorderSizePixel = 0
-mainFrame.Parent = ScreenGui
-mainFrame.Active = true
-mainFrame.Draggable = true
-
-local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.Parent = mainFrame
-UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 10)
-
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 40)
-title.BackgroundTransparency = 1
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 24
-title.Text = "Grow a Garden Unlocker"
-title.Parent = mainFrame
-
---// Bouton de toggle (Auto Unlock)
-local function createToggleButton(text, callback)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -20, 0, 40)
-    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    btn.BorderSizePixel = 0
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.GothamSemibold
-    btn.TextSize = 18
-    btn.Text = text
-    btn.Parent = mainFrame
-
-    btn.MouseButton1Click:Connect(function()
-        callback()
-    end)
-    return btn
-end
-
---// Fonctions principales du script (à adapter au jeu)
-
-local function unlockAllPlants()
-    -- Exemple : appelle un event Remote pour débloquer les plantes
-    local remote = ReplicatedStorage:FindFirstChild("UnlockPlantEvent") -- Adapter le nom
-    if remote then
-        for i = 1, 50 do -- Nombre de plantes supposé
-            remote:FireServer(i)
-        end
-    end
-end
-
-local function collectAllResources()
-    -- Exemple : appelle un remote pour collecter les ressources
-    local collectRemote = ReplicatedStorage:FindFirstChild("CollectResourceEvent") -- Adapter le nom
-    if collectRemote then
-        collectRemote:FireServer()
-    end
-end
-
-local function giveMoney(amount)
-    -- Essayer de modifier la valeur d'argent local (exemple)
-    local leaderstats = player:FindFirstChild("leaderstats")
-    if leaderstats then
-        local money = leaderstats:FindFirstChild("Money")
-        if money and money:IsA("IntValue") then
-            money.Value = money.Value + amount
-        end
-    end
-end
-
---// Toggle auto unlock
-createToggleButton("Toggle Auto Unlock", function()
-    AutoUnlock = not AutoUnlock
-    if AutoUnlock then
-        spawn(function()
-            while AutoUnlock do
-                unlockAllPlants()
-                wait(5)
+-- 📦 Auto Collect (Coins)
+Window:CreateToggle({
+    Name = "Auto Collect Coins 💰",
+    CurrentValue = false,
+    Callback = function(Value)
+        autoCollect = Value
+        while autoCollect and task.wait(1) do
+            for _, v in pairs(workspace:GetDescendants()) do
+                if v.Name == "Coin" and v:IsA("Part") then
+                    v.CFrame = player.Character.HumanoidRootPart.CFrame
+                end
             end
-        end)
-    end
-end)
+        end
+    end,
+})
 
---// Toggle auto collect
-createToggleButton("Toggle Auto Collect", function()
-    AutoCollect = not AutoCollect
-    if AutoCollect then
-        spawn(function()
-            while AutoCollect do
-                collectAllResources()
-                wait(3)
+-- 🧺 Auto Récolte
+Window:CreateToggle({
+    Name = "Auto Harvest 🌽",
+    CurrentValue = false,
+    Callback = function(Value)
+        autoHarvest = Value
+        while autoHarvest and task.wait(1) do
+            local garden = workspace:FindFirstChild("GardenPlots")
+            if garden then
+                for _, plot in pairs(garden:GetDescendants()) do
+                    if plot.Name == "Harvest" and plot:IsA("ClickDetector") then
+                        fireclickdetector(plot)
+                    end
+                end
             end
-        end)
-    end
-end)
+        end
+    end,
+})
 
---// Button Give Money
-local giveMoneyBtn = Instance.new("TextButton")
-giveMoneyBtn.Size = UDim2.new(1, -20, 0, 40)
-giveMoneyBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-giveMoneyBtn.BorderSizePixel = 0
-giveMoneyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-giveMoneyBtn.Font = Enum.Font.GothamSemibold
-giveMoneyBtn.TextSize = 18
-giveMoneyBtn.Text = "Give 1000 Money"
-giveMoneyBtn.Parent = mainFrame
+-- 💧 Auto Arrosage
+Window:CreateToggle({
+    Name = "Auto Watering 💧",
+    CurrentValue = false,
+    Callback = function(Value)
+        autoWater = Value
+        while autoWater and task.wait(1.5) do
+            local garden = workspace:FindFirstChild("GardenPlots")
+            if garden then
+                for _, plot in pairs(garden:GetDescendants()) do
+                    if plot.Name == "Water" and plot:IsA("ClickDetector") then
+                        fireclickdetector(plot)
+                    end
+                end
+            end
+        end
+    end,
+})
 
-giveMoneyBtn.MouseButton1Click:Connect(function()
-    giveMoney(1000)
-end)
+-- 📍 Téléportations
+local TeleportTab = Window:CreateTab("Téléportation", 4483362458)
+TeleportTab:CreateButton({
+    Name = "Aller au Jardin 🪴",
+    Callback = function()
+        player.Character.HumanoidRootPart.CFrame = CFrame.new(25, 3, -30)
+    end,
+})
+
+TeleportTab:CreateButton({
+    Name = "Aller au Marché 🛒",
+    Callback = function()
+        player.Character.HumanoidRootPart.CFrame = CFrame.new(-50, 3, 20)
+    end,
+})
+
+-- 🔼 Auto Buy Upgrades
+local autoBuyUpgrades = false
+
+Window:CreateToggle({
+    Name = "Auto Buy Upgrades 🛠️",
+    CurrentValue = false,
+    Callback = function(Value)
+        autoBuyUpgrades = Value
+        while autoBuyUpgrades and task.wait(2) do
+            -- Exécute les achats depuis les boutons dans le GUI (si disponibles)
+            local upgradeFolder = player.PlayerGui:FindFirstChild("Upgrades")
+            if upgradeFolder then
+                for _, btn in pairs(upgradeFolder:GetDescendants()) do
+                    if btn:IsA("TextButton") and btn.AutoButtonColor == true then
+                        pcall(function()
+                            btn:Activate()
+                        end)
+                    end
+                end
+            end
+
+            -- En cas de méthode dans le monde (ex: ClickDetectors pour des upgrades physiques)
+            local upgradeParts = workspace:FindFirstChild("Upgrades")
+            if upgradeParts then
+                for _, v in pairs(upgradeParts:GetDescendants()) do
+                    if v:IsA("ClickDetector") then
+                        pcall(function()
+                            fireclickdetector(v)
+                        end)
+                    end
+                end
+            end
+        end
+    end,
+})
