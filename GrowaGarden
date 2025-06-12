@@ -1,128 +1,153 @@
--- Interface avancée Rayfield
-local Rayfield = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Rayfield/main/source"))()
+--[[ 
+⚠️ Ce script est pour Solara (lua$). 
+Il ne fonctionne qu'avec les exécutors compatibles.
+]]
 
-local Window = Rayfield:CreateWindow({
-    Name = "Grow A Garden | Hub by ChatGPT",
-    LoadingTitle = "Chargement du script...",
-    LoadingSubtitle = "Grow A Garden Auto System",
-    ConfigurationSaving = {
-        Enabled = true,
-        FolderName = "GrowAGardenHub",
-        FileName = "GAG_Config"
-    },
-    Discord = {
-        Enabled = false,
-    },
-    KeySystem = false,
+-- Chargement de l'interface
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/Quinell5/Orion/main/OrionLib.lua"))()
+
+local Window = OrionLib:MakeWindow({
+    Name = "🌱 Grow A Garden | Interface Pro",
+    HidePremium = false,
+    SaveConfig = true,
+    ConfigFolder = "GrowAGardenCFG"
 })
 
-local player = game.Players.LocalPlayer
-local autoCollect = false
-local autoWater = false
-local autoHarvest = false
+-- Variables
+local AutoFarmEnabled = false
+local AutoCollectEnabled = false
+local AutoWaterEnabled = false
 
--- 📦 Auto Collect (Coins)
-Window:CreateToggle({
-    Name = "Auto Collect Coins 💰",
-    CurrentValue = false,
-    Callback = function(Value)
-        autoCollect = Value
-        while autoCollect and task.wait(1) do
-            for _, v in pairs(workspace:GetDescendants()) do
-                if v.Name == "Coin" and v:IsA("Part") then
-                    v.CFrame = player.Character.HumanoidRootPart.CFrame
+-- Fonction d'AutoFarm
+function AutoFarm()
+    while AutoFarmEnabled and task.wait(1) do
+        for _, plot in pairs(workspace.Plots:GetChildren()) do
+            if plot:FindFirstChild("GrowPart") and plot:FindFirstChild("Owner") then
+                if plot.Owner.Value == game.Players.LocalPlayer.Name then
+                    firetouchinterest(plot.GrowPart, game.Players.LocalPlayer.Character.HumanoidRootPart, 0)
+                    task.wait(0.2)
+                    firetouchinterest(plot.GrowPart, game.Players.LocalPlayer.Character.HumanoidRootPart, 1)
                 end
             end
         end
-    end,
-})
+    end
+end
 
--- 🧺 Auto Récolte
-Window:CreateToggle({
-    Name = "Auto Harvest 🌽",
-    CurrentValue = false,
-    Callback = function(Value)
-        autoHarvest = Value
-        while autoHarvest and task.wait(1) do
-            local garden = workspace:FindFirstChild("GardenPlots")
-            if garden then
-                for _, plot in pairs(garden:GetDescendants()) do
-                    if plot.Name == "Harvest" and plot:IsA("ClickDetector") then
-                        fireclickdetector(plot)
-                    end
-                end
+-- Fonction de collecte automatique
+function AutoCollect()
+    while AutoCollectEnabled and task.wait(1) do
+        for _, drop in pairs(workspace.Drops:GetChildren()) do
+            if drop:IsA("Part") then
+                firetouchinterest(drop, game.Players.LocalPlayer.Character.HumanoidRootPart, 0)
+                task.wait(0.1)
+                firetouchinterest(drop, game.Players.LocalPlayer.Character.HumanoidRootPart, 1)
             end
         end
-    end,
-})
+    end
+end
 
--- 💧 Auto Arrosage
-Window:CreateToggle({
-    Name = "Auto Watering 💧",
-    CurrentValue = false,
-    Callback = function(Value)
-        autoWater = Value
-        while autoWater and task.wait(1.5) do
-            local garden = workspace:FindFirstChild("GardenPlots")
-            if garden then
-                for _, plot in pairs(garden:GetDescendants()) do
-                    if plot.Name == "Water" and plot:IsA("ClickDetector") then
-                        fireclickdetector(plot)
-                    end
-                end
-            end
+-- Fonction d’arrosage automatique
+function AutoWater()
+    while AutoWaterEnabled and task.wait(1) do
+        local tool = game.Players.LocalPlayer.Backpack:FindFirstChild("WateringCan") or game.Players.LocalPlayer.Character:FindFirstChild("WateringCan")
+        if tool then
+            tool:Activate()
         end
-    end,
+    end
+end
+
+-- Onglet Auto
+local AutoTab = Window:MakeTab({
+    Name = "🌾 AutoFarm",
+    Icon = "rbxassetid://7734053495",
+    PremiumOnly = false
 })
 
--- 📍 Téléportations
-local TeleportTab = Window:CreateTab("Téléportation", 4483362458)
-TeleportTab:CreateButton({
-    Name = "Aller au Jardin 🪴",
+AutoTab:AddToggle({
+    Name = "✅ Auto Farm",
+    Default = false,
+    Callback = function(value)
+        AutoFarmEnabled = value
+        if value then
+            AutoFarm()
+        end
+    end
+})
+
+AutoTab:AddToggle({
+    Name = "🎁 Auto Collect Drops",
+    Default = false,
+    Callback = function(value)
+        AutoCollectEnabled = value
+        if value then
+            AutoCollect()
+        end
+    end
+})
+
+AutoTab:AddToggle({
+    Name = "💧 Auto Watering",
+    Default = false,
+    Callback = function(value)
+        AutoWaterEnabled = value
+        if value then
+            AutoWater()
+        end
+    end
+})
+
+-- Onglet TP
+local TPTab = Window:MakeTab({
+    Name = "📍 Téléportation",
+    Icon = "rbxassetid://7734068321",
+    PremiumOnly = false
+})
+
+TPTab:AddButton({
+    Name = "🏠 Aller à la ferme",
     Callback = function()
-        player.Character.HumanoidRootPart.CFrame = CFrame.new(25, 3, -30)
-    end,
-})
-
-TeleportTab:CreateButton({
-    Name = "Aller au Marché 🛒",
-    Callback = function()
-        player.Character.HumanoidRootPart.CFrame = CFrame.new(-50, 3, 20)
-    end,
-})
-
--- 🔼 Auto Buy Upgrades
-local autoBuyUpgrades = false
-
-Window:CreateToggle({
-    Name = "Auto Buy Upgrades 🛠️",
-    CurrentValue = false,
-    Callback = function(Value)
-        autoBuyUpgrades = Value
-        while autoBuyUpgrades and task.wait(2) do
-            -- Exécute les achats depuis les boutons dans le GUI (si disponibles)
-            local upgradeFolder = player.PlayerGui:FindFirstChild("Upgrades")
-            if upgradeFolder then
-                for _, btn in pairs(upgradeFolder:GetDescendants()) do
-                    if btn:IsA("TextButton") and btn.AutoButtonColor == true then
-                        pcall(function()
-                            btn:Activate()
-                        end)
-                    end
-                end
-            end
-
-            -- En cas de méthode dans le monde (ex: ClickDetectors pour des upgrades physiques)
-            local upgradeParts = workspace:FindFirstChild("Upgrades")
-            if upgradeParts then
-                for _, v in pairs(upgradeParts:GetDescendants()) do
-                    if v:IsA("ClickDetector") then
-                        pcall(function()
-                            fireclickdetector(v)
-                        end)
-                    end
-                end
+        local char = game.Players.LocalPlayer.Character
+        local plot = nil
+        for _, p in pairs(workspace.Plots:GetChildren()) do
+            if p:FindFirstChild("Owner") and p.Owner.Value == game.Players.LocalPlayer.Name then
+                plot = p
+                break
             end
         end
-    end,
+        if plot then
+            char:MoveTo(plot.Position.Position + Vector3.new(0, 5, 0))
+        end
+    end
 })
+
+-- Onglet Divers
+local MiscTab = Window:MakeTab({
+    Name = "⚙️ Divers",
+    Icon = "rbxassetid://7733971330",
+    PremiumOnly = false
+})
+
+MiscTab:AddButton({
+    Name = "🚀 Vitesse x2",
+    Callback = function()
+        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 32
+    end
+})
+
+MiscTab:AddButton({
+    Name = "🔄 Reset Vitesse",
+    Callback = function()
+        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 16
+    end
+})
+
+-- Crédit
+local CreditsTab = Window:MakeTab({
+    Name = "📜 Crédits",
+    Icon = "rbxassetid://7733765395",
+    PremiumOnly = false
+})
+
+CreditsTab:AddParagraph("Script par", "🔧 ChatGPT x Solara Executor\nVersion 1.0 - Mise à jour Juin 2025")
+
+OrionLib:Init()
