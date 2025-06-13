@@ -1,74 +1,122 @@
--- // UI avancée + AutoFarm Blox Fruits (Local Script)
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-local Workspace = game:GetService("Workspace")
-local RunService = game:GetService("RunService")
+-- Blox Fruits Script Complet par @mdjoubia
+-- Interface avancée, AutoFarm, Shop, TP, Clicker
 
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window = Library.CreateLib("Blox Fruits V2 | Script Complet", "Ocean")
+
+local FarmingTab = Window:NewTab("Auto Farm")
+local FarmingSection = FarmingTab:NewSection("Main")
+
+local ClickTab = Window:NewTab("Clicker")
+local ClickSection = ClickTab:NewSection("Auto Click")
+
+local ShopTab = Window:NewTab("Shop")
+local ShopSection = ShopTab:NewSection("Acheter")
+
+local TPSection = Window:NewTab("Téléportation"):NewSection("Zones")
+
+local player = game.Players.LocalPlayer
+local hum = player.Character:WaitForChild("HumanoidRootPart")
 local autofarm = false
+local autoclick = false
+local weapon = nil
 
--- UI LIBRARY (MODERNE)
-local ScreenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-ScreenGui.Name = "BloxFruitsUI"
-ScreenGui.ResetOnSpawn = false
+-- Trouver arme
+function GetWeapon()
+	for _,v in pairs(player.Backpack:GetChildren()) do
+		if v:IsA("Tool") then
+			return v
+		end
+	end
+	return nil
+end
 
-local Frame = Instance.new("Frame", ScreenGui)
-Frame.Size = UDim2.new(0, 250, 0, 100)
-Frame.Position = UDim2.new(0, 20, 0.5, -50)
-Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Frame.BorderSizePixel = 0
-Frame.AnchorPoint = Vector2.new(0, 0.5)
-Frame.BackgroundTransparency = 0.1
-Frame.ClipsDescendants = true
-Frame.Active = true
-Frame.Draggable = true
+-- Mob intelligent
+function GetNearestMob()
+	local level = player.Data.Level.Value
+	for _,v in pairs(game:GetService("Workspace").Enemies:GetChildren()) do
+		if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
+			if v.Name:match("Bandit") and level < 10 then
+				return v
+			elseif v.Name:match("Monkey") and level >= 10 and level < 30 then
+				return v
+			elseif v.Name:match("Pirate") and level >= 30 and level < 60 then
+				return v
+			end
+		end
+	end
+	return nil
+end
 
-local UICorner = Instance.new("UICorner", Frame)
-UICorner.CornerRadius = UDim.new(0, 12)
+-- Attaque
+function Attack()
+	if weapon == nil then weapon = GetWeapon() end
+	if weapon and player.Character:FindFirstChild(weapon.Name) == nil then
+		weapon.Parent = player.Character
+	end
+	if weapon then
+		local args = {
+			[1] = "Combat",
+			[2] = "Click"
+		}
+		game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+	end
+end
 
-local Title = Instance.new("TextLabel", Frame)
-Title.Size = UDim2.new(1, 0, 0, 40)
-Title.BackgroundTransparency = 1
-Title.Text = "🍍 Blox Fruits AutoFarm"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.Font = Enum.Font.GothamSemibold
-Title.TextSize = 16
-
-local Toggle = Instance.new("TextButton", Frame)
-Toggle.Size = UDim2.new(0.8, 0, 0, 30)
-Toggle.Position = UDim2.new(0.1, 0, 0, 55)
-Toggle.BackgroundColor3 = Color3.fromRGB(100, 0, 255)
-Toggle.Text = "AutoFarm: OFF"
-Toggle.TextColor3 = Color3.new(1,1,1)
-Toggle.Font = Enum.Font.GothamBold
-Toggle.TextSize = 14
-Toggle.AutoButtonColor = true
-
-local ToggleCorner = Instance.new("UICorner", Toggle)
-ToggleCorner.CornerRadius = UDim.new(0, 8)
-
--- AUTO FARM FUNCTION
+-- Auto Farm
 spawn(function()
-    while true do
-        if autofarm then
-            for _, mob in pairs(Workspace.Enemies:GetChildren()) do
-                if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
-                    player.Character.HumanoidRootPart.CFrame = mob.HumanoidRootPart.CFrame + Vector3.new(0, 5, 0)
-                    wait(0.2)
-                    repeat
-                        -- Simule une attaque (Z, X, ou click)
-                        game:GetService("VirtualInputManager"):SendKeyEvent(true, "Z", false, game)
-                        wait(0.3)
-                    until not mob.Parent or mob.Humanoid.Health <= 0 or not autofarm
-                end
-            end
-        end
-        wait(1)
-    end
+	while task.wait(0.1) do
+		if autofarm then
+			local mob = GetNearestMob()
+			if mob then
+				pcall(function()
+					hum.CFrame = mob.HumanoidRootPart.CFrame * CFrame.new(0,5,0)
+					Attack()
+				end)
+			end
+		end
+	end
 end)
 
--- TOGGLE BUTTON
-Toggle.MouseButton1Click:Connect(function()
-    autofarm = not autofarm
-    Toggle.Text = "AutoFarm: " .. (autofarm and "ON" or "OFF")
-    Toggle.BackgroundColor3 = autofarm and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(100, 0, 255)
+-- Auto Click
+spawn(function()
+	while task.wait(0.05) do
+		if autoclick then
+			Attack()
+		end
+	end
+end)
+
+-- Interface : Boutons
+FarmingSection:NewToggle("Auto Farm", "Farm auto selon ton niveau", function(state)
+	autofarm = state
+end)
+
+ClickSection:NewToggle("Auto Click rapide", "Clique très rapidement", function(state)
+	autoclick = state
+end)
+
+ShopSection:NewButton("Acheter Katana", "Achète une épée au shop", function()
+	game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuyKatana")
+end)
+
+ShopSection:NewButton("Acheter Accessoire Noir", "Achète l'accessoire noir", function()
+	game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuyBlackCape")
+end)
+
+ShopSection:NewButton("Acheter Fruit Random", "Obtient un fruit aléatoire", function()
+	game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("Cousin", "Buy")
+end)
+
+-- Téléportations
+TPSection:NewButton("Spawn", "TP au spawn", function()
+	hum.CFrame = CFrame.new(1048, 16, 1426)
+end)
+
+TPSection:NewButton("Jungle", "TP à la jungle", function()
+	hum.CFrame = CFrame.new(-1249, 11, 342)
+end)
+
+TPSection:NewButton("Zone Pirates", "TP pirates LVL 30+", function()
+	hum.CFrame = CFrame.new(-1115, 4, 3937)
 end)
