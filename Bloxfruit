@@ -1,0 +1,74 @@
+-- // UI avancée + AutoFarm Blox Fruits (Local Script)
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+
+local autofarm = false
+
+-- UI LIBRARY (MODERNE)
+local ScreenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+ScreenGui.Name = "BloxFruitsUI"
+ScreenGui.ResetOnSpawn = false
+
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0, 250, 0, 100)
+Frame.Position = UDim2.new(0, 20, 0.5, -50)
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Frame.BorderSizePixel = 0
+Frame.AnchorPoint = Vector2.new(0, 0.5)
+Frame.BackgroundTransparency = 0.1
+Frame.ClipsDescendants = true
+Frame.Active = true
+Frame.Draggable = true
+
+local UICorner = Instance.new("UICorner", Frame)
+UICorner.CornerRadius = UDim.new(0, 12)
+
+local Title = Instance.new("TextLabel", Frame)
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundTransparency = 1
+Title.Text = "🍍 Blox Fruits AutoFarm"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamSemibold
+Title.TextSize = 16
+
+local Toggle = Instance.new("TextButton", Frame)
+Toggle.Size = UDim2.new(0.8, 0, 0, 30)
+Toggle.Position = UDim2.new(0.1, 0, 0, 55)
+Toggle.BackgroundColor3 = Color3.fromRGB(100, 0, 255)
+Toggle.Text = "AutoFarm: OFF"
+Toggle.TextColor3 = Color3.new(1,1,1)
+Toggle.Font = Enum.Font.GothamBold
+Toggle.TextSize = 14
+Toggle.AutoButtonColor = true
+
+local ToggleCorner = Instance.new("UICorner", Toggle)
+ToggleCorner.CornerRadius = UDim.new(0, 8)
+
+-- AUTO FARM FUNCTION
+spawn(function()
+    while true do
+        if autofarm then
+            for _, mob in pairs(Workspace.Enemies:GetChildren()) do
+                if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
+                    player.Character.HumanoidRootPart.CFrame = mob.HumanoidRootPart.CFrame + Vector3.new(0, 5, 0)
+                    wait(0.2)
+                    repeat
+                        -- Simule une attaque (Z, X, ou click)
+                        game:GetService("VirtualInputManager"):SendKeyEvent(true, "Z", false, game)
+                        wait(0.3)
+                    until not mob.Parent or mob.Humanoid.Health <= 0 or not autofarm
+                end
+            end
+        end
+        wait(1)
+    end
+end)
+
+-- TOGGLE BUTTON
+Toggle.MouseButton1Click:Connect(function()
+    autofarm = not autofarm
+    Toggle.Text = "AutoFarm: " .. (autofarm and "ON" or "OFF")
+    Toggle.BackgroundColor3 = autofarm and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(100, 0, 255)
+end)
