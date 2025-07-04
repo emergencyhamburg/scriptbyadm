@@ -1,0 +1,284 @@
+-- ███████╗ ULTRA‑ADMIN v1.0 ‑ 1 seul script (serveur + client + interface)
+-- Place ce Script dans ServerScriptService
+----------------------------------------------------------
+local Players            = game:GetService("Players")
+local RunService         = game:GetService("RunService")
+local DataStoreService   = game:GetService("DataStoreService")
+local ReplicatedStorage  = game:GetService("ReplicatedStorage")
+
+----------------------------------------------------------
+-- ▒ Qui est admin ?
+----------------------------------------------------------
+local ADMINS = {               -- ⇦ ajoute tes pseudos ici
+    ["Adam69bd23"] = true,
+}
+
+----------------------------------------------------------
+-- ▒ DataStore bannis
+----------------------------------------------------------
+local banStore = DataStoreService:GetDataStore("UltraAdmin_Bans")
+
+----------------------------------------------------------
+-- ▒ RemoteEvents (1 seul dossier pour rester propre)
+----------------------------------------------------------
+local remoteFolder = Instance.new("Folder")
+remoteFolder.Name = "UltraAdminRemotes"
+remoteFolder.Parent = ReplicatedStorage
+
+local remoteFly     = Instance.new("RemoteEvent", remoteFolder)  remoteFly.Name     = "FlyToggle"
+local remoteESP     = Instance.new("RemoteEvent", remoteFolder)  remoteESP.Name     = "ToggleESP"
+local remoteBring   = Instance.new("RemoteEvent", remoteFolder)  remoteBring.Name   = "BringAll"
+local remoteTP      = Instance.new("RemoteEvent", remoteFolder)  remoteTP.Name      = "TPToPlayer"
+local remoteBan     = Instance.new("RemoteEvent", remoteFolder)  remoteBan.Name     = "BanPlayer"
+
+----------------------------------------------------------
+-- ▒ Interface + LocalScript injectés chez l’admin
+----------------------------------------------------------
+local function createGUI(targetPlayer)
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "UltraAdminGUI"
+    gui.ResetOnSpawn = false
+    gui.IgnoreGuiInset = false
+
+    local frame = Instance.new("Frame", gui)
+    frame.Size = UDim2.new(0, 300, 0, 390)
+    frame.Position = UDim2.new(0.7, 0, 0.2, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    frame.BackgroundTransparency = 0.15
+    frame.BorderSizePixel = 0
+    frame.Active = true
+    frame.Draggable = true
+    frame.ClipsDescendants = true
+    frame.AnchorPoint = Vector2.new(0,0)
+
+    local list = Instance.new("UIListLayout", frame)
+    list.Padding = UDim.new(0, 8)
+    list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    list.SortOrder = Enum.SortOrder.LayoutOrder
+
+    local function newButton(text)
+        local b = Instance.new("TextButton")
+        b.Size = UDim2.new(0.92, 0, 0, 34)
+        b.Text = text
+        b.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        b.TextColor3 = Color3.new(1, 1, 1)
+        b.Font = Enum.Font.GothamBold
+        b.TextSize = 14
+        b.AutoButtonColor = false
+        b.BorderSizePixel = 0
+        return b
+    end
+
+    local btnFly   = newButton("🛫  Fly  (F)")
+    btnFly.Parent  = frame
+
+    local btnESP   = newButton("👁️  ESP")
+    btnESP.Parent  = frame
+
+    local btnBring = newButton("🎯  Bring ALL")
+    btnBring.Parent = frame
+
+    -- Champ + bouton TP
+    local tpBox = Instance.new("TextBox", frame)
+    tpBox.Size = UDim2.new(0.92, 0, 0, 34)
+    tpBox.PlaceholderText = "Nom du joueur pour TP"
+    tpBox.Text = ""
+    tpBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    tpBox.TextColor3 = Color3.new(1,1,1)
+    tpBox.Font = Enum.Font.Gotham
+    tpBox.TextSize = 14
+    tpBox.BorderSizePixel = 0
+
+    local btnTP = newButton("🚶  TP vers joueur")
+    btnTP.Parent = frame
+
+    -- Champ + bouton Ban
+    local banBox = Instance.new("TextBox", frame)
+    banBox.Size = UDim2.new(0.92, 0, 0, 34)
+    banBox.PlaceholderText = "Nom du joueur à bannir"
+    banBox.Text = ""
+    banBox.BackgroundColor3 = Color3.fromRGB(60, 20, 20)
+    banBox.TextColor3 = Color3.new(1,1,1)
+    banBox.Font = Enum.Font.Gotham
+    banBox.TextSize = 14
+    banBox.BorderSizePixel = 0
+
+    local btnBan = newButton("⛔  BAN player")
+    btnBan.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
+    btnBan.Parent = frame
+
+    gui.Parent = targetPlayer:WaitForChild("PlayerGui")
+
+    ------------------------------------------------------
+    -- LocalScript « client » (fly + esp)
+    ------------------------------------------------------
+    local localScript = Instance.new("LocalScript", gui)
+    localScript.Source = [[
+        local RS          = game:GetService("RunService")
+        local Players     = game:GetService("Players")
+        local UIS         = game:GetService("UserInputService")
+        local Remotes     = game:GetService("ReplicatedStorage"):WaitForChild("UltraAdminRemotes")
+
+        local player      = Players.LocalPlayer
+        local flying      = false
+        local speed       = 120
+        local ctrl        = {f=0,b=0,l=0,r=0}
+
+        --------------------------------------------------
+        -- ▒ Fly (F)
+        --------------------------------------------------
+        local function startFly()
+            if flying then return end
+            local char = player.Character or player.CharacterAdded:Wait()
+            local root = char:WaitForChild("HumanoidRootPart")
+
+            local bg   = Instance.new("BodyGyro", root)
+            bg.P = 9e4  bg.maxTorque = Vector3.new(9e9, 9e9, 9e9)  bg.cframe = root.CFrame
+
+            local bv   = Instance.new("BodyVelocity", root)
+            bv.velocity = Vector3.new()
+            bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
+
+            flying = true
+            while flying and RS.RenderStepped:Wait() do
+                local camCF = workspace.CurrentCamera.CFrame
+                local vel = (camCF.LookVector * (ctrl.f + ctrl.b) + camCF.RightVector * (ctrl.r + ctrl.l)) * speed
+                bv.velocity = vel
+                bg.cframe = camCF
+            end
+            bg:Destroy()  bv:Destroy()
+        end
+
+        local function stopFly() flying = false end
+
+        UIS.InputBegan:Connect(function(i,p)
+            if p then return end
+            if i.KeyCode == Enum.KeyCode.F then
+                if flying then stopFly() else startFly() end
+            elseif i.KeyCode == Enum.KeyCode.W then ctrl.f = 1
+            elseif i.KeyCode == Enum.KeyCode.S then ctrl.b = -1
+            elseif i.KeyCode == Enum.KeyCode.A then ctrl.l = -1
+            elseif i.KeyCode == Enum.KeyCode.D then ctrl.r = 1
+            end
+        end)
+        UIS.InputEnded:Connect(function(i)
+            if i.KeyCode == Enum.KeyCode.W then ctrl.f = 0
+            elseif i.KeyCode == Enum.KeyCode.S then ctrl.b = 0
+            elseif i.KeyCode == Enum.KeyCode.A then ctrl.l = 0
+            elseif i.KeyCode == Enum.KeyCode.D then ctrl.r = 0
+            end
+        end)
+
+        --------------------------------------------------
+        -- ▒ ESP
+        --------------------------------------------------
+        local espOn = false
+        local function toggleESP()
+            espOn = not espOn
+            for _,pl in ipairs(Players:GetPlayers()) do
+                if pl ~= player and pl.Character then
+                    local head = pl.Character:FindFirstChild("Head")
+                    if head then
+                        local tag = head:FindFirstChild("UltraESP")
+                        if tag then tag:Destroy() end
+                        if espOn then
+                            local gui = Instance.new("BillboardGui", head)
+                            gui.Name = "UltraESP"
+                            gui.Size = UDim2.new(0,100,0,40)
+                            gui.StudsOffset = Vector3.new(0,2,0)
+                            gui.AlwaysOnTop = true
+                            local txt = Instance.new("TextLabel", gui)
+                            txt.Size = UDim2.new(1,0,1,0)
+                            txt.BackgroundTransparency = 1
+                            txt.Text = pl.Name
+                            txt.Font = Enum.Font.GothamBold
+                            txt.TextColor3 = Color3.fromRGB(255,0,0)
+                            txt.TextScaled = true
+                        end
+                    end
+                end
+            end
+        end
+        Remotes.ToggleESP.OnClientEvent:Connect(toggleESP)
+    ]]
+
+    ------------------------------------------------------
+    -- Connexions boutons (client → remote)
+    ------------------------------------------------------
+    btnFly.MouseButton1Click:Connect(function()
+        remoteFly:FireClient(targetPlayer)    -- simple ping, géré côté client
+    end)
+    btnESP.MouseButton1Click:Connect(function()
+        remoteESP:FireClient(targetPlayer)
+    end)
+    btnBring.MouseButton1Click:Connect(function()
+        remoteBring:FireServer()
+    end)
+    btnTP.MouseButton1Click:Connect(function()
+        if tpBox.Text ~= "" then
+            remoteTP:FireServer(tpBox.Text)
+            tpBox.Text = ""
+        end
+    end)
+    btnBan.MouseButton1Click:Connect(function()
+        if banBox.Text ~= "" then
+            remoteBan:FireServer(banBox.Text)
+            banBox.Text = ""
+        end
+    end)
+end
+
+----------------------------------------------------------
+-- ▒ Gestion des nouveaux joueurs
+----------------------------------------------------------
+Players.PlayerAdded:Connect(function(plr)
+    -- Ban check
+    local isBanned = false
+    pcall(function()
+        isBanned = banStore:GetAsync(plr.UserId)
+    end)
+    if isBanned then
+        plr:Kick("Vous êtes banni.")
+        return
+    end
+
+    -- Injecter l’interface si admin
+    if ADMINS[plr.Name] then
+        -- attendre que le client ait son PlayerGui
+        plr.CharacterAdded:Wait()
+        task.defer(createGUI, plr)
+    end
+end)
+
+----------------------------------------------------------
+-- ▒ RemoteEvents côté serveur
+----------------------------------------------------------
+remoteBring.OnServerEvent:Connect(function(plr)
+    if not ADMINS[plr.Name] then return end
+    if not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then return end
+    local pos = plr.Character.HumanoidRootPart.CFrame + Vector3.new(0, 5, 0)
+    for _,p in ipairs(Players:GetPlayers()) do
+        if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            p.Character.HumanoidRootPart.CFrame = pos
+        end
+    end
+end)
+
+remoteTP.OnServerEvent:Connect(function(plr, targetName)
+    if not ADMINS[plr.Name] then return end
+    local target = Players:FindFirstChild(targetName)
+    if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+       and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+        plr.Character.HumanoidRootPart.CFrame =
+            target.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
+    end
+end)
+
+remoteBan.OnServerEvent:Connect(function(plr, targetName)
+    if not ADMINS[plr.Name] then return end
+    local target = Players:FindFirstChild(targetName)
+    if target then
+        pcall(function() banStore:SetAsync(target.UserId, true) end)
+        target:Kick("Banni par admin.")
+    end
+end)
