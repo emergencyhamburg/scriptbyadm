@@ -198,3 +198,43 @@ UIS.JumpRequest:Connect(function()
 		if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
 	end
 end)
+
+
+local function getPlayerTeam(p)
+    local tv = p:FindFirstChild("Team") or (p.Character and p.Character:FindFirstChild("Team"))
+    if tv and tv:IsA("StringValue") then return tv.Value elseif p.Team then return tostring(p.Team) end
+    return nil
+end
+
+local localTeam = getPlayerTeam(player)
+local aimbotConn
+local function getClosestEnemy()
+    local closest, bestDist = nil, math.huge
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player and p.Character then
+            local humanoid = p.Character:FindFirstChildOfClass("Humanoid")
+            local head = p.Character:FindFirstChild("Head")
+            if humanoid and humanoid.Health > 0 and head and getPlayerTeam(p) ~= localTeam then
+                local pos2d, on = camera:WorldToViewportPoint(head.Position)
+                if on then
+                    local d = (Vector2.new(pos2d.X,pos2d.Y) - Vector2.new(UserInputService:GetMouseLocation())).Magnitude
+                    if d < bestDist then bestDist, closest = d, p end
+                end
+            end
+        end
+    end
+    return closest
+end
+
+local function toggleAimbot(state)
+    aimbotEnabled = state
+    if state then
+        aimbotConn = RunService.RenderStepped:Connect(function()
+            local tgt = getClosestEnemy()
+            if tgt and tgt.Character then
+                local head = tgt.Character:FindFirstChild("Head")
+                if head then camera.CFrame = CFrame.new(camera.CFrame.Position, head.Position) end
+            end
+        end)
+    elseif aimbotConn then aimbotConn:Disconnect() aimbotConn = nil end
+end
