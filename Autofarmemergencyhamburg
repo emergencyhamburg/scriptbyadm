@@ -1,0 +1,219 @@
+--Autofarm
+-- // Services und Variablen \--
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local running = false
+local isRunning = false
+local selectedJob = "Country Bus Driver"
+local jobCoordinates = {
+    ["Country Bus Driver"] = {
+        Vector3.new(-1681.187988281250000, 10.180006027221680, -1262.231811523437500), --Start out
+        Vector3.new(-1698.439819335937500, 232.603576660156250, -1249.669555664062500), --Fly up
+        Vector3.new(-974.894775390625000, 333.790679931640625, -1518.369628906250000), --Station 1 Sky
+        Vector3.new(-966.960266113281250, 10.190764427185059, -1520.916748046875000), --Station 1 Down
+        Vector3.new(-1016.461242675781250, 373.713989257812500, -1523.310546875000000),  --Station 1 Sky
+        Vector3.new(449.275421142578125, 343.821716308593750, -1525.493774414062500), -- Station 2 sky
+        Vector3.new(455.465789794921875, 10.180837631225586, -1516.974121093750000), --Station 2 Down
+        Vector3.new(514.281188964843750, 469.111389160156250, -1507.595947265625000), --Station 2 sky
+        Vector3.new(-988.946899414062500, 299.099426269531250, -1556.767333984375000), --Station 3 sky
+        Vector3.new(-997.542419433593750, 10.184120178222656, -1563.182617187500000), --Station 3 Down
+        Vector3.new(-985.685485839843750, 392.945434570312500, -1553.505126953125000), --Station 3 Sky
+        Vector3.new(-1116.598510742187500, 533.454650878906250, -260.891601562500000), -- Station 4 Sky
+        Vector3.new(-1100.829223632812500, 10.196144104003906, -234.665557861328125), -- Station 4 down -------------- Bug Fix
+        Vector3.new(-1109.380737304687500, 524.846740722656250, -265.781341552734375), -- Station 4 sky
+        Vector3.new(-1451.835571289062500, 698.980651855468750, 823.482543945312500), -- Station 5 sky
+        Vector3.new(-1456.857788085937500, 10.181584358215332, 789.074096679687500), -- Station 5 down
+        Vector3.new(-1408.649414062500000, 493.050476074218750, 786.559265136718750), -- Station 5 sky
+        Vector3.new(-1778.046386718750000, 605.955993652343750, 2729.241210937500000), -- station 6 abwegen
+        Vector3.new(-1543.539794921875000, 530.300598144531250, 2736.571777343750000), -- station 6 sky
+        Vector3.new(-1522.587646484375000, 10.157640457153320, 2732.810791015625000), -- Station 6 down
+        Vector3.new(-1652.041137695312500, 575.360717773437500, 2730.640136718750000), -- Staton 6 sky
+        Vector3.new(-883.614135742187500, 525.794738769531250, 2732.552490234375000), -- Station 7 sky
+        Vector3.new(-852.891479492187500, 10.158723831176758, 2734.871582031250000), -- Staion 7 down
+        Vector3.new(-874.537292480468750, 693.483886718750000, 2747.841552734375000), -- Staion 7 sky
+        Vector3.new(-294.541015625000000, 762.644165039062500, 3596.536376953125000), -- Staion 8 sky
+        Vector3.new(-330.821350097656250, 10.176096916198730, 3622.393310546875000), --- Staiob 8 down ------------Bug Fix
+        Vector3.new(-278.730072021484375, 397.316802978515625, 3618.049804687500000), -- Staion 8 sky
+        Vector3.new(-858.611206054687500, 514.708374023437500, 2698.348632812500000), -- Staion 9 sky
+        Vector3.new(-886.250549316406250, 10.160254478454590, 2693.417724609375000), -- Staion 9 down
+        Vector3.new(-859.371398925781250, 512.869750976562500, 2696.7011718750000000), --  staion 9 sky
+        Vector3.new(-1537.103759765625000, 228.782058715820312, 2685.749023437500000), -- staion 10 sky
+        Vector3.new(-1555.950927734375000, 10.198545455932617, 2693.959228515625000), -- station 10 down
+        Vector3.new(-1539.724975585937500, 724.353210449218750, 2689.174316406250000), -- sttion 10 sky
+        Vector3.new(-1439.116455078125000, 718.875732421875000, 826.532958984375000), -- Station 11 sky
+        Vector3.new(-1416.240112304687500, 10.207593917846680, 831.457092285156250), -- Station 11 down
+        Vector3.new(-1448.491455078125000, 725.313354492187500, 829.722778320312500), -- Station 11 sky
+        Vector3.new(-1079.403686523437500, 702.658996582031250, -245.850891113281250), -- Station 12 sky
+        Vector3.new(-1076.396362304687500, 974.828796386718750, -243.179519653320312), -- station 12 down
+        Vector3.new(-1089.552612304687500, 10.173697471618652, -267.414581298828125) -- Station 12 sky
+    },
+    ["City Bus Driver"] = {
+        Vector3.new(-1646.285888671875000, 10.187110900878906, -1255.119262695312500), --Start out
+        Vector3.new(-1640.080200195312500, 313.784820556640625, -1237.811035156250000), -- Fly up
+        Vector3.new(-537.991394042968750, 490.614044189453125, 836.374450683593750), -- Station 1 sky
+        Vector3.new(-511.426208496093750, 10.150253295898438, 830.630249023437500), -- Station1 down
+        Vector3.new(-544.060974121093750, 600.535278320312500, 831.858276367187500), -- Station 1 sky
+        Vector3.new(105.802444458007812, 508.197662353515625, 1585.252075195312500), -- Station 2 sky
+        Vector3.new(111.877311706542969, 10.179727554321289, 1605.837158203125000), -- Station 2 down
+        Vector3.new(100.599815368652344, 527.822448730468750, 1548.340454101562500), -- Station 2 sky
+        Vector3.new(-1206.718505859375000, 428.672363281250000, 3243.366943359375000), -- Station 3 sky
+        Vector3.new(-1225.654541015625000, 10.159392356872559, 3251.547851562500000), -- Station 3 down
+        Vector3.new(-1163.925048828125000, 556.035339355468750, 3256.243896484375000),   -- Station 3 sky
+        Vector3.new(-1765.907226562500000, 481.599731445312500, 3239.118896484375000), -- Station 4 sky
+        Vector3.new(-1782.325439453125000, 10.162170410156250, 3249.404296875000000), -- Station4 down
+        Vector3.new(-1747.894653320312500, 836.562683105468750, 3255.056152343750000), -- Station 4 sky
+        Vector3.new(-1542.751831054687500, 879.813842773437500, 3968.641113281250000), -- Station5 sky
+        Vector3.new(-1521.761230468750000, 10.171607971191406, 3966.098632812500000), -- Station 5 down
+        Vector3.new(-1566.692871093750000, 824.185119628906250, 3958.008300781250000), -- Station 5 sky
+        Vector3.new(-983.501831054687500, 838.269226074218750, 3971.004150390625000),  -- Station 6 sky
+        Vector3.new(-970.804260253906250, 10.184775352478027, 3964.075927734375000), -- Station 6 down
+        Vector3.new(-997.713012695312500, 696.167114257812500, 3949.857666015625000), -- Station 6 sky 
+        Vector3.new(-285.799560546875000, 640.559692382812500, 3608.748046875000000), -- Station 7 sky
+        Vector3.new(-291.297546386718750, 10.195637702941895, 3597.757080078125000), -- Station 7 down
+        Vector3.new(-294.877197265625000, 812.709655761718750, 3643.673583984375000), -- Station 7 sky
+        Vector3.new(-978.234863281250000, 777.921142578125000, 3928.356933593750000), -- Station 8 sky
+        Vector3.new(-1002.123596191406250, 10.190248489379883, 3925.399169921875000), -- Station 8 down
+        Vector3.new(-978.234863281250000, 777.921142578125000, 3928.356933593750000), -- Station 8 sky
+        Vector3.new(-1539.796508789062500, 1164.984130859375000, 3924.570312500000000), -- Station 9 sky
+        Vector3.new(-1556.447753906250000, 10.160072326660156, 3926.198242187500000), -- Station 9 down
+        Vector3.new(-1528.205932617187500, 648.015930175781250, 3933.529541015625000), -- Station 9 sky
+        Vector3.new(-1774.362060546875000, 579.303222656250000, 3298.1743164062500000), -- Station 10 sky
+        Vector3.new(-1751.586914062500000, 10.158844947814941, 3300.687988281250000), -- Sattion 10 down 
+        Vector3.new(-1774.362060546875000, 579.303222656250000, 3298.1743164062500000), -- Station 10 sky
+        Vector3.new(-1206.739013671875000, 397.024841308593750, 3295.661865234375000), -- Station 11 sky
+        Vector3.new(-1193.755615234375000, 10.157957077026367, 3300.101318359375000), -- Station 11 down
+        Vector3.new(-1206.739013671875000, 397.024841308593750, 3295.661865234375000), -- Station 11 sky
+        Vector3.new(163.045486450195312, 836.232604980468750, 1679.369262695312500), -- Station 12 sky
+        Vector3.new(160.735397338867188, 10.186191558837891, 1584.393188476562500), -- Station 12 down
+        Vector3.new(163.045486450195312, 836.232604980468750, 1679.369262695312500), -- Station 12 sky
+        Vector3.new(-536.688232421875000, 682.050415039062500, 782.555236816406250), -- Station 13 sky
+        Vector3.new(-542.864929199218750, 10.196780204772949, 791.185302734375000), -- Station 13 down
+        Vector3.new(-536.688232421875000, 682.050415039062500, 782.555236816406250), -- Station 13 sky
+        Vector3.new(-1431.816772460937500, 822.079162597656250, 787.736328125000000), -- Station 14 sky
+        Vector3.new(-1439.858398437500000, 10.206727981567383, 787.279602050781250), -- Station 14 down
+        Vector3.new(-1431.816772460937500, 822.079162597656250, 787.736328125000000) -- Station 14 sky
+
+        --[[
+        163.045486450195312, 836.232604980468750, 1679.369262695312500
+        160.735397338867188, 10.186191558837891, 1584.393188476562500
+    ]]
+
+
+    },
+    ["Autorob [SOON!]"] = {
+        print("Not working rng")
+    }
+}
+local function moveToPosition(vehicle, destination, speed)
+    local distanceThreshold = 1
+    while running do
+        local currentPosition = vehicle.PrimaryPart.Position
+        local distance = (destination - currentPosition).Magnitude
+        if distance < distanceThreshold then
+            print("Ziel erreicht:", destination)
+            break
+        end
+        local direction = (destination - currentPosition).Unit
+        local targetCFrame = CFrame.new(currentPosition + direction * speed * RunService.Heartbeat:Wait(), destination)
+        vehicle:SetPrimaryPartCFrame(targetCFrame)
+        vehicle.PrimaryPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        vehicle.PrimaryPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+    end
+end
+local function autoFarm()
+    local Character = LocalPlayer.Character
+    local Humanoid = Character:FindFirstChildWhichIsA("Humanoid")
+    if not Humanoid or not Humanoid.SeatPart or not Humanoid.SeatPart:IsA("VehicleSeat") then
+        return
+    end
+    local SeatPart = Humanoid.SeatPart
+    local Vehicle = SeatPart.Parent
+    while running do
+        for _, destination in ipairs(jobCoordinates[selectedJob] or {}) do
+            if not running then break end
+            print("Bewege zu:", destination)
+            moveToPosition(Vehicle, destination, 120)
+            wait(1)
+        end
+    end
+    print("AutoFarm beendet.")
+end
+-- // Tabs \--
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+local Window = OrionLib:MakeWindow({
+    Name = "Ghost Logic ui AutoFarm v0.2",
+    HidePremium = false,
+    SaveConfig = true,
+    ConfigFolder = "Ghost Logic",
+    IntroEnabled = true,
+    IntroText = "Welcome to the Beta 0.1"
+})
+local AutoFarmTab = Window:MakeTab({
+    Name = "AutoFarm",
+    Icon = "rbxassetid://4483362458",
+    PremiumOnly = false
+})
+AutoFarmTab:AddDropdown({
+    Name = "Select Job",
+    Default = "Country Bus Driver",
+    Options = {"Country Bus Driver", "City Bus Driver", "Autorob [SOON!]"},
+    Callback = function(value)
+        selectedJob = value
+        print("Ausgewählter Job:", selectedJob)
+    end
+})
+AutoFarmTab:AddToggle({
+    Name = "Enable AutoFarm",
+    Default = false,
+    Callback = function(state)
+        running = state
+        if running then
+            task.spawn(autoFarm)
+        end
+    end
+})
+AutoFarmTab:AddToggle({
+    Name = "Anti Fall Out",
+    Default = false,
+    Callback = function(state)
+        isRunning = state
+        if isRunning then
+            task.spawn(function()
+                while isRunning do
+                    wait(0.1)
+                    local vehicle = workspace.Vehicles:FindFirstChild(LocalPlayer.Name)
+                    if vehicle then
+                        local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+                        if humanoid and not humanoid.SeatPart then
+                            local driveSeat = vehicle:FindFirstChild("DriveSeat")
+                            if driveSeat then
+                                driveSeat:Sit(humanoid)
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+})
+-- // Update Log Tab \--
+local UpdateLogTab = Window:MakeTab({
+    Name = "Update Log / Info",
+    Icon = "rbxassetid://4483362458",
+    PremiumOnly = false
+})
+UpdateLogTab:AddSection({
+    Name = "Version 0.01 - AutoFarm Tutorial"
+})
+UpdateLogTab:AddParagraph(
+    "How does AutoFarm work?",
+    [[
+    1. Make sure you work for the Bus Company.
+    2. Get a bus! Open the vehicle menu, select your bus and spawn it.
+    3. Get in the bus. (You must be in the driver's seat!)
+    4. Open the Script UI and enable "Enable AutoFarm".
+    5. Optional: Enable "Anti Fall Out" to ensure you automatically get back into your bus in case of bugs.
+    ]]
+)
+OrionLib:Init()
