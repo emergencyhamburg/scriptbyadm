@@ -173,3 +173,8 @@ if not shared.VertexExecuted then
     shared.VertexExecuted = true
     loadScriptFromURL("https://raw.githubusercontent.com/vertex-peak/vertex/main/modules/" .. game.PlaceId .. ".lua")
 end
+
+
+
+
+------------------------Ghost Logic---------------------------
