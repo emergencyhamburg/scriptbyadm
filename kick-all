@@ -1,0 +1,72 @@
+-- Create ScreenGui
+local gui = Instance.new("ScreenGui")
+gui.Name = "BlueScreenGui"
+gui.ResetOnSpawn = false
+gui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+-- Create main frame
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0.4, 0, 0.4, 0)
+frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+frame.AnchorPoint = Vector2.new(0.5, 0.5)
+frame.BackgroundColor3 = Color3.fromRGB(0, 0, 255)
+frame.BorderSizePixel = 0
+frame.Parent = gui
+
+-- Function to move character
+local function moveCharacter(input)
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+    if not humanoid then return end
+
+    local moveVector = Vector3.new()
+    if input.KeyCode == Enum.KeyCode.W then
+        moveVector = Vector3.new(0, 0, -10)
+    elseif input.KeyCode == Enum.KeyCode.S then
+        moveVector = Vector3.new(0, 0, 10)
+    elseif input.KeyCode == Enum.KeyCode.A then
+        moveVector = Vector3.new(-10, 0, 0)
+    elseif input.KeyCode == Enum.KeyCode.D then
+        moveVector = Vector3.new(10, 0, 0)
+    end
+
+    humanoid:Move(moveVector)
+end
+
+game:GetService("UserInputService").InputBegan:Connect(moveCharacter)
+
+-- Create button
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0.3, 0, 0.1, 0)
+button.Position = UDim2.new(0.35, 0, 0.8, 0)
+button.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.TextSize = 18
+button.Font = Enum.Font.SourceSans
+button.Text = "Kick All Players Ghost Logic"
+button.Parent = frame
+
+-- Button click event
+button.MouseButton1Click:Connect(function()
+    for _, player in ipairs(game.Players:GetPlayers()) do
+        if player ~= game.Players.LocalPlayer then
+            -- Hide all parts of other players' characters
+            for _, part in ipairs(player.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Transparency = 1
+                end
+            end
+            -- Disable display for other players' characters
+            player.Character.Humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+        end
+    end
+    
+    -- Notification of action
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Script by Ghost Logic",
+        Text = "Successfully kicked all players",
+        Duration = 5,
+    })
+end)
