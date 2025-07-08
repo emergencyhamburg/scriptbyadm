@@ -1,16 +1,11 @@
-------------------------------------------------------------------
---  Multi‑Hack : Aimbot • Fly • NoClip • ESP • Speed • Invis
---               Bring All • Bring Joueur • TP Joueur
---  Place ce LocalScript dans StarterPlayerScripts
-------------------------------------------------------------------
 
---== Services ====================================================
+
 local Players    = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInput  = game:GetService("UserInputService")
 local Workspace  = game:GetService("Workspace")
 
---== Variables ===================================================
+
 local me        = Players.LocalPlayer
 local camera    = workspace.CurrentCamera
 
@@ -20,9 +15,7 @@ local flyBodyVel = nil
 local flyConn, noclipConn, aimbotConn, bringConn = nil,nil,nil,nil
 local espBoxes, espConns, savedTrans = {},{},{}
 
-------------------------------------------------------------------
---  Aimbot helpers
-------------------------------------------------------------------
+
 local function getPlayerTeam(p)
     local tv = p:FindFirstChild("Team") or (p.Character and p.Character:FindFirstChild("Team"))
     if tv and tv:IsA("StringValue") then return tv.Value elseif p.Team then return tostring(p.Team) end
@@ -60,9 +53,6 @@ local function toggleAimbot(on)
     elseif aimbotConn then aimbotConn:Disconnect(); aimbotConn=nil end
 end
 
-------------------------------------------------------------------
---  Fly
-------------------------------------------------------------------
 local function toggleFly(on)
     state.Fly = on
     local char=me.Character
@@ -90,9 +80,6 @@ local function toggleFly(on)
     end
 end
 
-------------------------------------------------------------------
---  NoClip
-------------------------------------------------------------------
 local function toggleNoClip(on)
     state.NoClip = on
     local function step()
@@ -110,9 +97,6 @@ local function toggleNoClip(on)
     end
 end
 
-------------------------------------------------------------------
---  ESP
-------------------------------------------------------------------
 local function createESP(p)
     if espBoxes[p] or p==me or not p.Character then return end
     local hrp=p.Character:FindFirstChild("HumanoidRootPart")
@@ -139,9 +123,7 @@ local function toggleESP(on)
     end
 end
 
-------------------------------------------------------------------
---  Invisible
-------------------------------------------------------------------
+
 local function toggleInvis(on)
     state.Invis=on
     local char=me.Character; if not char then return end
@@ -159,9 +141,6 @@ local function toggleInvis(on)
     end
 end
 
-------------------------------------------------------------------
---  Bring All / Bring player / TP player
-------------------------------------------------------------------
 local function toggleBringAll(on)
     state.BringAll=on
     if on then
@@ -208,9 +187,6 @@ local function bring(name)
     end
 end
 
-------------------------------------------------------------------
---  UI : frame + boutons + bouton – / +
-------------------------------------------------------------------
 local gui=Instance.new("ScreenGui",me:WaitForChild("PlayerGui"))
 gui.Name="MultiHackUI"; gui.ResetOnSpawn=false
 
@@ -315,8 +291,6 @@ end)
 mk("TP → Joueur",function() prompt("TP vers joueur","PseudoExact",tpTo) end)
 mk("Bring Joueur → moi",function() prompt("Bring joueur","PseudoExact",bring) end)
 
-------------------------------------------------------------------
---  Afficher / masquer UI avec F7
 ------------------------------------------------------------------
 UserInput.InputBegan:Connect(function(i,gp)
     if not gp and i.KeyCode==Enum.KeyCode.F7 then gui.Enabled=not gui.Enabled end
